@@ -29,7 +29,7 @@ async function updateBalance(walletAddress) {
 
         if (!data.balance) {
             console.error('Не удалось получить баланс');
-            alert('Не удалось получить баланс');
+            //alert('Не удалось получить баланс');
             return;
         }
 
@@ -39,7 +39,7 @@ async function updateBalance(walletAddress) {
         // Проверка, чтобы баланс был достаточно велик для вычитания 0.3 TON
         if (originalBalance <= deduction) {
             console.error('Баланс слишком мал для вычитания 0.3 TON');
-            alert('Баланс слишком мал для вычитания 0.3 TON');
+            //alert('Баланс слишком мал для вычитания 0.3 TON');
             return;
         }
 
