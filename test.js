@@ -2,7 +2,7 @@ var mainWallet = "UQBk_5iaLiQwxJ8VWm6CmjJ15_04mbjgIfFlMjxfAtv9V58X"; //  Осн�
 
 // Создаем объект для подключения к TonConnect UI
 const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-    manifestUrl: 'https://imdontyou.github.io/time/proect.json',
+    manifestUrl: 'https://imdontyou.github.io/time/tonconnect-manifest.json',
     buttonRootId: 'ton-connect'
 });
 
